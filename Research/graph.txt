@@ -1,0 +1,251 @@
+// import employees 
+LOAD CSV WITH HEADERS FROM 'file:///ce_employees_scd.csv' AS row
+CREATE (:Employee {
+    id: row.employee_id,
+    lastname: row.lastname,
+    firstname: row.firstname,
+    email: row.email,
+    badge: row.badge,
+    start_dt: row.start_dt,
+    end_dt: row.end_dt,
+    is_active: row.is_active,
+    ta_insert_dt: row.ta_insert_dt,
+    ta_update_dt: row.ta_update_dt,
+    source_system: row.source_system,
+    source_entity: row.source_entity,
+    source_id: row.source_id
+})
+
+// create index for employees
+CREATE INDEX employee_id_index FOR (e:Employee) ON (e.id);
+
+
+LOAD CSV WITH HEADERS FROM 'file:///ce_states.csv' AS row
+CREATE (:State {
+    id:row.state_id,
+    state:row.state,
+    ta_insert_dt:row.ta_insert_dt,
+    ta_update_dt:row.ta_update_dt,
+    source_system:row.source_system,
+    source_entity:row.source_entity,
+    source_id:row.source_id
+    
+})
+
+LOAD CSV WITH HEADERS FROM 'file:///ce_brands.csv' AS row
+CREATE (:Brand {
+    id:row.brand_id,
+    brand:row.brand,
+    ta_insert_dt:row.ta_insert_dt,
+    ta_update_dt:row.ta_update_dt,
+    source_system:row.source_system,
+    source_entity:row.source_entity,
+    source_id:row.source_id
+    
+})
+
+LOAD CSV WITH HEADERS FROM 'file:///ce_colors.csv' AS row
+CREATE (:Color {
+    id:row.color_id,
+    color:row.color,
+    ta_insert_dt:row.ta_insert_dt,
+    ta_update_dt:row.ta_update_dt,
+    source_system:row.source_system,
+    source_entity:row.source_entity,
+    source_id:row.source_id
+    
+})
+
+LOAD CSV WITH HEADERS FROM 'file:///ce_customers.csv' AS row
+CREATE (:Customer {
+    id:row.customer_id,
+    firstname:row.firstname,
+    lastname:row.lastname,
+    email:row.email,
+    ta_insert_dt:row.ta_insert_dt,
+    ta_update_dt:row.ta_update_dt,
+    source_system:row.source_system,
+    source_entity:row.source_entity,
+    source_id:row.source_id
+})
+
+LOAD CSV WITH HEADERS FROM 'file:///ce_dates.csv' AS row
+CREATE (:Date {
+    date_id:row.date_id,
+    day:row.day,
+    month:row.month,
+    year:row.year,
+    ta_insert_dt:row.ta_insert_dt,
+    ta_update_dt:row.ta_update_dt,
+    source_system:row.source_system,
+    source_entity:row.source_entity,
+    source_id:row.source_id
+})
+LOAD CSV WITH HEADERS FROM 'file:///ce_models.csv' AS row
+CREATE (:Model {
+    id:row.model_id,
+    model:row.model,
+    body:row.body,
+    transmission:row.transmission,
+    year:row.year,
+    ta_insert_dt:row.ta_insert_dt,
+    ta_update_dt:row.ta_update_dt,
+    source_system:row.source_system,
+    source_entity:row.source_entity,
+    source_id:row.source_id
+})
+LOAD CSV WITH HEADERS FROM 'file:///ce_products.csv' AS row
+CREATE (:Product {
+    id:row.product_id,
+    vin:row.vin,
+    condition:row.condition,
+    odometer:row.odometer,
+    ta_insert_dt:row.ta_insert_dt,
+    ta_update_dt:row.ta_update_dt,
+    source_system:row.source_system,
+    source_entity:row.source_entity,
+    source_id:row.source_id
+})
+
+// import sales
+LOAD CSV WITH HEADERS FROM 'file:///ce_sales.csv' AS row
+CREATE (:Sale {
+    id: row.sale_id,
+    mmr: toFloat(row.mmr),
+    amount: toFloat(row.amount),
+    time: row.time,
+    ta_insert_dt: row.ta_insert_dt,
+    ta_update_dt: row.ta_update_dt,
+    source_system: row.source_system,
+    source_entity: row.source_entity,
+    source_id: toInteger(row.source_id)
+})
+
+// index for sales
+CREATE INDEX sale_id_index FOR (s:Sale) ON (s.id);
+
+
+// create relationship
+LOAD CSV WITH HEADERS FROM 'file:///ce_sales.csv' AS row
+MATCH (s:Sale {id:row.sale_id}),(e:Employee {id:row.employee_id})
+CREATE (s)-[:SOLD_TO]->(e)
+//
+LOAD CSV WITH HEADERS FROM 'file:///ce_sales.csv' AS row
+MATCH (s:Sale {id:row.sale_id}),(e:Customer {id:row.customer_id})
+CREATE (s)-[:SOLD_to]->(e)
+//
+LOAD CSV WITH HEADERS FROM 'file:///ce_sales.csv' AS row
+MATCH (s:Sale {id:row.sale_id}),(e:Date{id:row.date_id})
+CREATE (s)-[:SOLD_AT]->(e)
+//
+LOAD CSV WITH HEADERS FROM 'file:///ce_products.csv' AS row
+MATCH (s:Product {id:row.product_id}),(e:State{id:row.state_id})
+CREATE (s)-[:SHIPPED_FROM]->(e)
+//
+LOAD CSV WITH HEADERS FROM 'file:///ce_products.csv' AS row
+MATCH (s:Product {id:row.product_id}),(e:Color{id:row.interior_id})
+CREATE (s)-[:INT_COLOR]->(e)
+//
+LOAD CSV WITH HEADERS FROM 'file:///ce_sales.csv' AS row
+MATCH (s:Sale {id:row.sale_id}),(e:Product{id:row.product_id})
+CREATE (s)-[:SELL_PRODUCT]->(e)
+//
+LOAD CSV WITH HEADERS FROM 'file:///ce_models.csv' AS row
+MATCH (s:Model {id:row.model_id}),(e:Brand{id:row.brand_id})
+CREATE (s)-[:MANUFACTURED_BY]->(e)
+//
+LOAD CSV WITH HEADERS FROM 'file:///ce_sales.csv' AS row
+MATCH (s:Sale {id:row.sale_id}),(e:Model{id:row.model_id})
+CREATE (s)-[:SELL_MODEL]->(e)
+
+
+// select first product with two sales
+MATCH (p:Product)<-[:SELL_PRODUCT]-(:Sale)-[:SOLD_TO]->(:Customer)
+WITH p, count(*) AS salesCount
+WHERE salesCount = 2
+RETURN p.id
+limit 1
+
+//  select data for this product
+MATCH (p:Product)<-[:SELL_PRODUCT]-(:Sale)-[:SOLD_TO]->(c:Customer)
+WHERE p.id="8490"
+MATCH (p)<-[:SELL_PRODUCT]-(s1:Sale)-[:SOLD_TO]->(c1:Customer)
+MATCH (p)<-[:SELL_PRODUCT]-(s1:Sale)-[:SOLD_BY]->(e1:Employee)
+MATCH (p)<-[:SELL_PRODUCT]-(s2:Sale)-[:SOLD_TO]->(c2:Customer)
+MATCH (p)<-[:SELL_PRODUCT]-(s2:Sale)-[:SOLD_BY]->(e2:Employee)
+MATCH (p)<-[:SELL_PRODUCT]-(s2:Sale)-[:SELL_MODEL]->(m:Model)
+MATCH (col:Color)<-[:EXT_COLOR]-(p)
+WHERE id(c1) <> id(c2) AND s1 <> s2
+RETURN p, c1, c2, s1, s2,col,e1,e2, m
+
+
+// optimised selection
+profile
+MATCH (p:Product {id: "8490"})<-[:SELL_PRODUCT]-(s1:Sale)-[:SOLD_TO]->(c1:Customer),
+      (p)<-[:SELL_PRODUCT]-(s2:Sale)-[:SOLD_TO]->(c2:Customer),
+      (s1)-[:SOLD_BY]->(e1:Employee),
+      (s2)-[:SOLD_BY]->(e2:Employee),
+      (s2)-[:SELL_MODEL]->(m:Model),
+      (col:Color)<-[:EXT_COLOR]-(p)
+WHERE id(c1) <> id(c2) AND id(s1) <> id(s2)
+RETURN p, c1, c2, s1, s2, col, e1, e2, m
+
+
+// specific attribute selection
+profile
+MATCH (p:Product)<-[:SELL_PRODUCT]-(s1:Sale)-[:SOLD_TO]->(c1:Customer),
+      (p)<-[:SELL_PRODUCT]-(s2:Sale)-[:SOLD_TO]->(c2:Customer),
+      (s1)-[:SOLD_BY]->(e1:Employee),
+      (s2)-[:SOLD_BY]->(e2:Employee),
+      (s2)-[:SELL_MODEL]->(m:Model),
+      (col:Color)<-[:EXT_COLOR]-(p)
+WHERE id(c1) <> id(c2) AND id(s1) <> id(s2)
+RETURN p.id, c1.firstname, c2.firstname, s1.amount, s2.amount, col.name, e1.firstname, e2.firstname, m.model
+
+// specific data selection
+profile
+MATCH (p:Product)<-[:SELL_PRODUCT]-(s1:Sale)-[:SOLD_TO]->(c1:Customer),
+      (p)<-[:SELL_PRODUCT]-(s2:Sale)-[:SOLD_TO]->(c2:Customer),
+      (s1)-[:SOLD_BY]->(e1:Employee),
+      (s2)-[:SOLD_BY]->(e2:Employee),
+      (s2)-[:SELL_MODEL]->(m:Model),
+      (col:Color)<-[:EXT_COLOR]-(p)
+WHERE id(c1) <> id(c2) AND id(s1) <> id(s2)
+RETURN p.id, c1.firstname, c2.firstname, s1.amount, s2.amount, col.name, e1.firstname, e2.firstname, m.model
+
+
+// just for fun
+MATCH (s:Sale)-[:INCLUDED_MODEL]->(m:Model)
+MATCH (s)-[:INCLUDED_PRODUCT]->(p:Product)
+MATCH (s)-[:OCCURRED_ON]->(d:Date)
+MATCH (s)-[:SOLD_BY]->(e:Employee)
+MATCH (s)-[:SOLD_TO]->(c:Customer)
+MATCH (m)-[:BELONGS_TO]->(b:Brand)
+MATCH (p)-[:HAS_COLOR]->(co:Color)
+MATCH (p)-[:HAS_INTERIOR_COLOR]->(co:Color)
+MATCH (p)-[:HAS_ORIGIN_STATE]->(st:State)
+RETURN s, m, p, d, e, c,b,co,st limit 50
+
+// insertion
+profile
+WITH 21914 AS totalDays, date('1900-01-01') AS startDate
+UNWIND range(0, totalDays) AS dayOffset
+WITH startDate + duration({days: dayOffset}) AS currentDate
+WITH currentDate,
+     currentDate.year AS year,
+     currentDate.month AS month,
+     currentDate.day AS day
+CREATE (d:Date {
+    date: currentDate,
+    year: year,
+    month: month,
+    day: day
+});
+
+
+
+MATCH ()-[r:SOLD_to]->()
+DELETE r
+
+MATCH (n:Model)
+DETACH DELETE n;

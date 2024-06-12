@@ -1,0 +1,48 @@
+CREATE OR REPLACE PROCEDURE BL_CL.prc_load_init_ce_products()
+LANGUAGE plpgsql
+AS $$
+DECLARE
+	rows_default int;
+BEGIN 
+	CREATE TABLE IF NOT EXISTS BL_3NF.CE_PRODUCTS (
+	PRODUCT_ID int PRIMARY KEY,
+	VIN varchar(17) UNIQUE,
+	COLOR_ID int REFERENCES BL_3NF.CE_COLORS(COLOR_ID) NOT NULL,
+	INTERIOR_ID int REFERENCES BL_3NF.CE_COLORS(COLOR_ID) NOT NULL,
+	CONDITION decimal,
+	ODOMETER decimal,
+	STATE_ID SMALLINT REFERENCES BL_3NF.CE_STATES(STATE_ID) NOT NULL,
+	TA_INSERT_DT date,
+	TA_UPDATE_DT date,
+	SOURCE_SYSTEM varchar(50),
+	SOURCE_ENTITY varchar(50),
+	SOURCE_ID varchar(50)
+	);
+
+	CREATE SEQUENCE IF NOT EXISTS bl_3nf.ce_products_id_seq START 1;
+
+	ALTER TABLE bl_3nf.ce_products
+	ALTER COLUMN product_id SET DEFAULT nextval('bl_3nf.ce_products_id_seq');  
+
+	WITH load_default AS 
+	(
+		INSERT INTO BL_3NF.CE_PRODUCTS (PRODUCT_ID, VIN, COLOR_ID, INTERIOR_ID, CONDITION, ODOMETER, STATE_ID, TA_INSERT_DT, TA_UPDATE_DT, SOURCE_SYSTEM, SOURCE_ENTITY, SOURCE_ID)
+		SELECT -1, 'n. a.', -1, -1, -1, -1, -1, '1-1-1900', '1-1-1900', 'MANUAL', 'MANUAL', 'n. a.'
+		WHERE NOT EXISTS (
+		SELECT * FROM BL_3NF.CE_PRODUCTS p WHERE p.PRODUCT_ID = -1
+		)
+		RETURNING *
+	)
+	
+	SELECT count (*) INTO rows_default FROM load_default;
+
+
+    CALL BL_CL.prc_load_log('prc_load_init_ce_products', 'BL_3NF', 'CE_PRODUCTS', rows_default);
+
+	RETURN ;
+EXCEPTION 
+	WHEN NO_DATA_FOUND THEN
+        RAISE NOTICE 'no data found';
+    WHEN OTHERS THEN
+        RAISE NOTICE 'error occurred: %', SQLERRM;
+END;$$;
